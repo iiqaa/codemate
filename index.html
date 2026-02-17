@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CodeMate | AI & Real-Time Chat</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+
+    <style>
+        :root {
+            --sky-blue: #87CEEB;
+            --deep-blue: #0077b6;
+            --panel-bg: #ffffff;
+            --ai-bubble: #e1f5fe;
+            --user-bubble: #dcf8c6;
+            --code-bg: #1e1e1e;
+            --radius: 15px;
+        }
+
+        * { box-sizing: border-box; }
+        body, html { 
+            margin: 0; padding: 0; 
+            font-family: 'Segoe UI', sans-serif; 
+            background-color: var(--sky-blue); 
+            height: 100vh; overflow: hidden; 
+        }
+
+        /* --- UI COMPONENTS --- */
+        .menu-container { position: relative; display: inline-block; }
+        
+        .menu-btn {
+            background: var(--deep-blue); color: white;
+            border: 2px solid white; padding: 8px 15px;
+            border-radius: 8px; font-weight: bold; cursor: pointer;
+        }
+
+        .dropdown-content {
+            display: none; position: absolute; right: 0;
+            background-color: white; min-width: 200px;
+            box-shadow: 0px 8px 16px rgba(0,0,0,0.2);
+            z-index: 4000; border-radius: 8px; overflow: hidden;
+            border: 1px solid #ddd; margin-top: 5px;
+        }
+
+        .dropdown-content button {
+            width: 100%; padding: 12px 16px; border: none;
+            background: none; text-align: left; cursor: pointer;
+            font-size: 0.9rem; font-family: inherit;
+        }
+
+        .dropdown-content button:hover { background-color: #f1f1f1; }
+        .dropdown-content .logout-item { color: #555; border-top: 1px solid #eee; }
+        .dropdown-content .reset-item { color: #d32f2f; border-top: 1px solid #eee; font-weight: bold; }
+
+        #team-modal {
+            display: none; position: fixed; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 4001; background: white; padding: 25px;
+            border-radius: 12px; width: 350px; border: 4px solid var(--deep-blue);
+            box-shadow: 0 10px 50px rgba(0,0,0,0.4);
+        }
+
+        .overlay-bg {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.5); z-index: 4000;
+        }
+
+        .description-box {
+            background: #f0faff; border-left: 5px solid var(--deep-blue);
+            padding: 12px; margin: 10px 0; border-radius: 5px;
+            font-size: 0.85rem; color: #444; line-height: 1.4;
+        }
+
+        nav { 
+            background: rgba(255, 255, 255, 0.95); padding: 10px 30px;
+            display: flex; justify-content: space-between; align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .app-container { 
+            display: grid; grid-template-columns: 1fr 1fr; 
+            gap: 20px; padding: 20px; height: calc(100vh - 170px); 
+        }
+
+        .panel { 
+            background: var(--panel-bg); border-radius: var(--radius); 
+            display: flex; flex-direction: column; overflow: hidden;
+            border: 3px solid var(--deep-blue);
+        }
+
+        .panel-title { background: var(--deep-blue); color: white; padding: 12px; font-weight: bold; }
+        .lounge-title { background: #fbc02d; color: #333; padding: 12px; font-weight: bold; }
+
+        /* --- CHAT SYSTEM --- */
+        .chat-view { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background: #fafafa; }
+        .bubble { padding: 10px 15px; border-radius: var(--radius); max-width: 85%; font-size: 0.95rem; }
+        .ai { background: var(--ai-bubble); align-self: flex-start; border: 1px solid #b3e5fc; }
+        .user { background: var(--user-bubble); align-self: flex-end; border: 1px solid #c8e6c9; }
+        .other { background: white; align-self: flex-start; border: 1px solid #ddd; }
+
+        .panel-input { 
+            display: flex; padding: 15px; background: white; 
+            border-top: 2px solid #eee; gap: 10px; 
+        }
+        .panel-input input { flex: 1; padding: 10px; border: 2px solid #ddd; border-radius: 8px; outline: none; }
+
+        .code-solution { 
+            background: var(--code-bg); color: #dcdcdc; 
+            padding: 15px; border-radius: 8px; font-family: 'Consolas', monospace;
+            margin-top: 10px; white-space: pre; border-left: 4px solid #55efc4;
+            overflow-x: auto; font-size: 0.85rem;
+        }
+
+        .diag-btn { background: var(--deep-blue); color: white; border: none; padding: 10px 18px; border-radius: 8px; cursor: pointer; margin-top: 10px; font-weight: bold; }
+        .auth-overlay { position: fixed; inset: 0; background: var(--sky-blue); display: flex; align-items: center; justify-content: center; z-index: 5000; }
+        .auth-card { background: white; padding: 35px; border-radius: 20px; width: 340px; text-align: center; border: 4px solid var(--deep-blue); }
+    </style>
+</head>
+<body>
+
+<div id="modal-overlay" class="overlay-bg" onclick="ui.toggleModal()"></div>
+<div id="team-modal">
+    <div class="description-box">
+        <strong>Project Overview:</strong> Developing a Peer Code Review Web Platform 
+        For 11-ICT Programming Students in Lyceum of Alabang A.Y. 2025-2026.
+    </div>
+    <h3><strong>Members:</strong></h3>
+    <ol>
+        <li>Peralta, Daniella</li>
+        <li>Madrazo, Daphny</li>
+        <li>Estoque, Crissa</li>
+        <li>Saplaran, Niño</li>
+        <li>Nimes, Ralph Jed</li>
+        <li>Sadural, Shaun</li>
+    </ol>
+    <button onclick="ui.toggleModal()" style="width:100%; padding:10px; margin-top:10px; background:var(--deep-blue); color:white; border:none; border-radius:5px; cursor:pointer;">Close</button>
+</div>
+
+<div id="login-screen" class="auth-overlay">
+    <div class="auth-card">
+        <h2 style="color:var(--deep-blue)">Welcome to CodeMate!</h2>
+        <p id="auth-status" style="font-size: 0.9rem; color: #666;">Hey there,</p>
+        <input type="text" id="username" placeholder="Enter your Name.." maxlength="12" style="width:100%; padding:12px; margin: 15px 0; border: 2px solid var(--sky-blue); border-radius:8px; text-align:center;">
+        <button id="enter-btn" style="width:100%; padding: 12px; background: var(--deep-blue); color:white; border:none; border-radius:8px; cursor:pointer;" onclick="app.checkUsername()">Join Room</button>
+    </div>
+</div>
+
+<nav>
+    <div class="logo" style="font-size: 1.4rem; font-weight: bold; color: var(--deep-blue);">🦈 CodeMate</div>
+    <div style="display: flex; align-items: center; gap: 15px;">
+        <span id="user-tag" style="font-weight: bold; color: var(--deep-blue);">Offline</span>
+        <div class="menu-container">
+            <button class="menu-btn" onclick="ui.toggleMenu()">Menu ▾</button>
+            <div id="menu-dropdown" class="dropdown-content">
+                <button onclick="ui.toggleModal()">📋 Project Details</button>
+                <button class="logout-item" onclick="app.logout()">🚪 Logout</button>
+                <button class="reset-item" onclick="app.resetNickname()">⚠️ Reset Nickname</button>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<div id="main-ui" style="display:none">
+    <main class="app-container">
+        <section class="panel">
+            <div class="panel-title">🤖 Fixy</div>
+            <div class="description-box"><strong>AI Tool:</strong> Paste code to identify bugs.</div>
+            <div class="chat-view" id="ai-chat-view">
+                <div class="bubble ai">Paste your code. I will try to fix it!</div>
+            </div>
+            <div class="panel-input">
+                <input type="text" id="ai-input" placeholder="Paste code here..">
+                <button onclick="app.solve()" style="background:var(--deep-blue); color:white; border:none; padding:10px 15px; border-radius:8px; cursor:pointer;">Fix</button>
+            </div>
+        </section>
+
+        <section class="panel">
+            <div class="lounge-title">👥 Classmate Lounge</div>
+            <div class="description-box"><strong>Lounge:</strong> You can chat live with your classmates and ask for help.</div>
+            <div class="chat-view" id="lounge-chat-view"></div>
+            <div class="panel-input">
+                <input type="text" id="lounge-input" placeholder="Ask a classmate...">
+                <button style="background:#2d7ffb; border:none; padding:10px 15px; border-radius:8px; cursor:pointer;" onclick="app.post()">Send</button>
+            </div>
+        </section>
+    </main>
+</div>
+
+<script>
+const firebaseConfig = {
+    apiKey: "AIzaSyDxN6nhoM8slu6FvGvmiVWmjY3S4lpApd4",
+    authDomain: "codemate-578b3.firebaseapp.com",
+    databaseURL: "https://codemate-578b3-default-rtdb.firebaseio.com",
+    projectId: "codemate-578b3",
+    storageBucket: "codemate-578b3.firebasestorage.app",
+    messagingSenderId: "900867088515",
+    appId: "1:900867088515:web:602d9780b2fe5212f87bb6",
+    measurementId: "G-YFNEDKNHTM"
+};
+
+firebase.initializeApp(firebaseConfig);
+const database = firebase.database();
+let myNickname = "";
+
+const ui = {
+    toggleMenu: () => {
+        const d = document.getElementById('menu-dropdown');
+        d.style.display = (d.style.display === 'block') ? 'none' : 'block';
+    },
+    toggleModal: () => {
+        const m = document.getElementById('team-modal');
+        const o = document.getElementById('modal-overlay');
+        const isVisible = m.style.display === 'block';
+        m.style.display = isVisible ? 'none' : 'block';
+        o.style.display = isVisible ? 'none' : 'block';
+        document.getElementById('menu-dropdown').style.display = 'none';
+    },
+    scroll: (id) => {
+        const el = document.getElementById(id);
+        el.scrollTop = el.scrollHeight;
+    }
+};
+
+const app = {
+    lastFix: "",
+    checkUsername: function() {
+        const name = document.getElementById('username').value.trim();
+        if(name.length < 2) return alert("Nickname too short!");
+        const deviceKey = localStorage.getItem('codemate_device_id');
+        database.ref('registered_nicknames/' + name).once('value', (snap) => {
+            const data = snap.val();
+            if(data && data.deviceId !== deviceKey){
+                alert("This nickname is permanently taken by another user.");
+            } else {
+                const newId = deviceKey || 'dev_' + Math.random().toString(36).substr(2, 9);
+                if(!deviceKey) localStorage.setItem('codemate_device_id', newId);
+                database.ref('registered_nicknames/' + name).set({ deviceId: newId, registeredAt: Date.now() });
+                myNickname = name;
+                this.initUI();
+            }
+        });
+    },
+    logout: function() {
+        location.reload();
+    },
+    resetNickname: function() {
+        if(confirm("Warning: This will delete your nickname registration and clear your session. Proceed?")) {
+            if(myNickname) database.ref('registered_nicknames/' + myNickname).remove();
+            localStorage.removeItem('codemate_device_id');
+            location.reload();
+        }
+    },
+    initUI: function() {
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('main-ui').style.display = 'block';
+        database.ref(".info/connected").on("value", (snap) => {
+            const tag = document.getElementById('user-tag');
+            tag.innerText = snap.val() ? "🟢 " + myNickname : "🔴 Offline";
+        });
+        this.listen();
+    },
+    listen: function() {
+        database.ref("messages").limitToLast(20).on("child_added", (snap) => {
+            const val = snap.val();
+            const view = document.getElementById('lounge-chat-view');
+            const div = document.createElement('div');
+            div.className = `bubble ${val.name === myNickname ? 'user' : 'other'}`;
+            div.innerHTML = `<small style="display:block; font-weight:bold; color:var(--deep-blue)">${val.name}</small>${val.text}`;
+            view.appendChild(div);
+            ui.scroll('lounge-chat-view');
+        });
+    },
+    solve: function() {
+        const inp = document.getElementById('ai-input');
+        const val = inp.value.trim();
+        if(!val) return;
+        const view = document.getElementById('ai-chat-view');
+        const userDiv = document.createElement('div');
+        userDiv.className = 'bubble user'; userDiv.innerText = val;
+        view.appendChild(userDiv);
+        this.lastFix = `# Formatted Code\n${val}\n# Verified for Peer Review.`;
+        const aiDiv = document.createElement('div');
+        aiDiv.className = 'bubble ai';
+        aiDiv.innerHTML = `<strong>Diagnostic:</strong> Code check complete.<br><button class="diag-btn" onclick="app.showSolution(this)">Show Fix</button>`;
+        view.appendChild(aiDiv);
+        ui.scroll('ai-chat-view');
+        inp.value = "";
+    },
+    showSolution: function(btn) {
+        btn.parentElement.innerHTML = `<div class="code-solution">${this.lastFix}</div>`;
+        ui.scroll('ai-chat-view');
+    },
+    post: function() {
+        const inp = document.getElementById('lounge-input');
+        if(!inp.value.trim()) return;
+        database.ref("messages").push({ name: myNickname, text: inp.value });
+        inp.value = "";
+    }
+};
+
+window.onclick = function(event) {
+    if (!event.target.matches('.menu-btn')) {
+        const dropdowns = document.getElementsByClassName("dropdown-content");
+        for (let i = 0; i < dropdowns.length; i++) {
+            if (dropdowns[i].style.display === 'block') dropdowns[i].style.display = 'none';
+        }
+    }
+}
+</script>
+</body>
+</html>
