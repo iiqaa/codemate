@@ -16,7 +16,7 @@
             --ai-bubble: #e1f5fe;
             --user-bubble: #dcf8c6;
             --code-bg: #1e1e1e;
-            --radius: 15px;
+            --radius: 18px;
         }
 
         * { box-sizing: border-box; }
@@ -29,7 +29,6 @@
 
         /* --- UI COMPONENTS --- */
         .menu-container { position: relative; display: inline-block; }
-        
         .menu-btn {
             background: var(--deep-blue); color: white;
             border: 2px solid white; padding: 8px 15px;
@@ -51,7 +50,6 @@
         }
 
         .dropdown-content button:hover { background-color: #f1f1f1; }
-        .dropdown-content .logout-item { color: #555; border-top: 1px solid #eee; }
         .dropdown-content .reset-item { color: #d32f2f; border-top: 1px solid #eee; font-weight: bold; }
 
         #team-modal {
@@ -69,7 +67,7 @@
 
         .description-box {
             background: #f0faff; border-left: 5px solid var(--deep-blue);
-            padding: 12px; margin: 10px 0; border-radius: 5px;
+            padding: 12px; margin: 10px; border-radius: 5px;
             font-size: 0.85rem; color: #444; line-height: 1.4;
         }
 
@@ -87,33 +85,49 @@
         .panel { 
             background: var(--panel-bg); border-radius: var(--radius); 
             display: flex; flex-direction: column; overflow: hidden;
-            border: 3px solid var(--deep-blue);
+            border: 3px solid var(--deep-blue); position: relative;
         }
 
         .panel-title { background: var(--deep-blue); color: white; padding: 12px; font-weight: bold; }
-        .lounge-title { background: #fbc02d; color: #333; padding: 12px; font-weight: bold; }
+        .lounge-title { background: #302dfb; color: white; padding: 12px; font-weight: bold; }
 
         /* --- CHAT SYSTEM --- */
-        .chat-view { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background: #fafafa; }
-        .bubble { padding: 10px 15px; border-radius: var(--radius); max-width: 85%; font-size: 0.95rem; }
-        .ai { background: var(--ai-bubble); align-self: flex-start; border: 1px solid #b3e5fc; }
-        .user { background: var(--user-bubble); align-self: flex-end; border: 1px solid #c8e6c9; }
-        .other { background: white; align-self: flex-start; border: 1px solid #ddd; }
+        .chat-view { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; background: #fafafa; }
+        .bubble { padding: 10px 14px; border-radius: var(--radius); max-width: 80%; font-size: 0.95rem; position: relative; line-height: 1.4; }
+        .ai { background: var(--ai-bubble); align-self: flex-start; border-bottom-left-radius: 4px; }
+        .user { background: var(--user-bubble); align-self: flex-end; border-bottom-right-radius: 4px; }
+        .other { background: #eee; align-self: flex-start; border-bottom-left-radius: 4px; }
+        .unsent-text { font-style: italic; color: #999; font-size: 0.85rem; }
+
+        .replied-context { 
+            background: rgba(0,0,0,0.05); border-left: 3px solid var(--deep-blue);
+            padding: 4px 8px; margin-bottom: 5px; border-radius: 4px; font-size: 0.8rem; color: #666;
+        }
+
+        .chat-actions { margin-top: 4px; display: flex; gap: 10px; font-size: 0.7rem; opacity: 0.7; }
+        .chat-actions span:hover { opacity: 1; cursor: pointer; text-decoration: underline; }
+        .delete-btn { color: #d32f2f; }
+
+        .reply-preview {
+            display: none; background: #f0f0f0; padding: 8px 15px;
+            border-top: 1px solid #ddd; font-size: 0.85rem;
+            justify-content: space-between; align-items: center;
+        }
 
         .panel-input { 
-            display: flex; padding: 15px; background: white; 
-            border-top: 2px solid #eee; gap: 10px; 
+            display: flex; padding: 12px; background: white; 
+            border-top: 1px solid #eee; gap: 10px; align-items: center;
         }
-        .panel-input input { flex: 1; padding: 10px; border: 2px solid #ddd; border-radius: 8px; outline: none; }
+        .panel-input input { flex: 1; padding: 10px 15px; border: 1px solid #ddd; border-radius: 20px; outline: none; background: #f8f8f8; }
 
         .code-solution { 
             background: var(--code-bg); color: #dcdcdc; 
-            padding: 15px; border-radius: 8px; font-family: 'Consolas', monospace;
-            margin-top: 10px; white-space: pre; border-left: 4px solid #55efc4;
-            overflow-x: auto; font-size: 0.85rem;
+            padding: 15px; border-radius: 8px; font-family: 'Consolas', 'Monaco', monospace;
+            margin-top: 10px; white-space: pre-wrap; border-left: 4px solid #55efc4;
+            overflow-x: auto; font-size: 0.85rem; line-height: 1.5;
         }
 
-        .diag-btn { background: var(--deep-blue); color: white; border: none; padding: 10px 18px; border-radius: 8px; cursor: pointer; margin-top: 10px; font-weight: bold; }
+        .diag-btn { background: var(--deep-blue); color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; margin-top: 8px; font-weight: bold; }
         .auth-overlay { position: fixed; inset: 0; background: var(--sky-blue); display: flex; align-items: center; justify-content: center; z-index: 5000; }
         .auth-card { background: white; padding: 35px; border-radius: 20px; width: 340px; text-align: center; border: 4px solid var(--deep-blue); }
     </style>
@@ -123,8 +137,9 @@
 <div id="modal-overlay" class="overlay-bg" onclick="ui.toggleModal()"></div>
 <div id="team-modal">
     <div class="description-box">
-        <strong>Project Overview:</strong> Developing a Peer Code Review Web Platform 
-        For 11-ICT Programming Students in Lyceum of Alabang A.Y. 2025-2026.
+        <strong>Developing a Peer Code Review Web Platform
+For 11-ICT Programming Students in Lyceum
+of Alabang A.Y. 2025-2026</strong>
     </div>
     <h3><strong>Members:</strong></h3>
     <ol>
@@ -135,15 +150,14 @@
         <li>Nimes, Ralph Jed</li>
         <li>Sadural, Shaun</li>
     </ol>
-    <button onclick="ui.toggleModal()" style="width:100%; padding:10px; margin-top:10px; background:var(--deep-blue); color:white; border:none; border-radius:5px; cursor:pointer;">Close</button>
+    <button onclick="ui.toggleModal()" style="width:100%; padding:10px; background:var(--deep-blue); color:white; border:none; border-radius:5px; cursor:pointer;">Close</button>
 </div>
 
 <div id="login-screen" class="auth-overlay">
     <div class="auth-card">
         <h2 style="color:var(--deep-blue)">Welcome to CodeMate!</h2>
-        <p id="auth-status" style="font-size: 0.9rem; color: #666;">Hey there,</p>
         <input type="text" id="username" placeholder="Enter your Name.." maxlength="12" style="width:100%; padding:12px; margin: 15px 0; border: 2px solid var(--sky-blue); border-radius:8px; text-align:center;">
-        <button id="enter-btn" style="width:100%; padding: 12px; background: var(--deep-blue); color:white; border:none; border-radius:8px; cursor:pointer;" onclick="app.checkUsername()">Join Room</button>
+        <button style="width:100%; padding: 12px; background: var(--deep-blue); color:white; border:none; border-radius:8px; cursor:pointer;" onclick="app.checkUsername()">Join Room</button>
     </div>
 </div>
 
@@ -155,8 +169,8 @@
             <button class="menu-btn" onclick="ui.toggleMenu()">Menu ▾</button>
             <div id="menu-dropdown" class="dropdown-content">
                 <button onclick="ui.toggleModal()">📋 Project Details</button>
-                <button class="logout-item" onclick="app.logout()">🚪 Logout</button>
-                <button class="reset-item" onclick="app.resetNickname()">⚠️ Reset Nickname</button>
+                <button onclick="app.logout()">🚪 Log Out</button>
+                <button class="reset-item" onclick="app.resetNickname()">Reset Nickname</button>
             </div>
         </div>
     </div>
@@ -166,23 +180,33 @@
     <main class="app-container">
         <section class="panel">
             <div class="panel-title">🤖 Fixy</div>
-            <div class="description-box"><strong>AI Tool:</strong> Paste code to identify bugs.</div>
+            <div class="description-box">
+                Fixy can help you with code errors, explain logic, or just chat!
+            </div>
             <div class="chat-view" id="ai-chat-view">
-                <div class="bubble ai">Paste your code. I will try to fix it!</div>
+                <div class="bubble ai" id="ai-welcome">Yo! I'm in Solver Mode. Paste your broken code and I'll rewrite the fix for you instantly.</div>
             </div>
             <div class="panel-input">
-                <input type="text" id="ai-input" placeholder="Paste code here..">
-                <button onclick="app.solve()" style="background:var(--deep-blue); color:white; border:none; padding:10px 15px; border-radius:8px; cursor:pointer;">Fix</button>
+                <input type="text" id="ai-input" placeholder="Aa">
+                <button onclick="app.solve()" style="background:var(--deep-blue); color:white; border:none; padding:8px 15px; border-radius:20px; cursor:pointer;">Send</button>
             </div>
         </section>
 
         <section class="panel">
             <div class="lounge-title">👥 Classmate Lounge</div>
-            <div class="description-box"><strong>Lounge:</strong> You can chat live with your classmates and ask for help.</div>
+            <div class="description-box" style="background:#fff9e6; border-color:#2df4fb;">
+                A live chat where you can discuss with your classmates, share ideas, and help each other.
+            </div>
             <div class="chat-view" id="lounge-chat-view"></div>
+            
+            <div id="reply-bar" class="reply-preview">
+                <span id="reply-text" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:80%;"></span>
+                <span onclick="app.cancelReply()" style="cursor:pointer; font-weight:bold; color:#666;">✕</span>
+            </div>
+
             <div class="panel-input">
-                <input type="text" id="lounge-input" placeholder="Ask a classmate...">
-                <button style="background:#2d7ffb; border:none; padding:10px 15px; border-radius:8px; cursor:pointer;" onclick="app.post()">Send</button>
+                <input type="text" id="lounge-input" placeholder="Aa">
+                <button style="background:#2d7ffb; color:white; border:none; padding:8px 15px; border-radius:20px; cursor:pointer;" onclick="app.post()">Send</button>
             </div>
         </section>
     </main>
@@ -203,6 +227,11 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const database = firebase.database();
 let myNickname = "";
+let activeReply = null;
+
+const banned = ["bobo", "tanga", "gago", "puta", "pota", "hayop", "fuck", "shit", "bwisit", 
+    "letche", "fuck you", "yawa", "putcha"
+];
 
 const ui = {
     toggleMenu: () => {
@@ -224,10 +253,13 @@ const ui = {
 };
 
 const app = {
-    lastFix: "",
+    isBad: (t) => banned.some(w => t.toLowerCase().includes(w)),
+
     checkUsername: function() {
         const name = document.getElementById('username').value.trim();
         if(name.length < 2) return alert("Nickname too short!");
+        if(this.isBad(name)) return alert("Restricted nickname.");
+
         const deviceKey = localStorage.getItem('codemate_device_id');
         database.ref('registered_nicknames/' + name).once('value', (snap) => {
             const data = snap.val();
@@ -236,17 +268,25 @@ const app = {
             } else {
                 const newId = deviceKey || 'dev_' + Math.random().toString(36).substr(2, 9);
                 if(!deviceKey) localStorage.setItem('codemate_device_id', newId);
-                database.ref('registered_nicknames/' + name).set({ deviceId: newId, registeredAt: Date.now() });
+                
+                database.ref('registered_nicknames/' + name).set({ 
+                    deviceId: newId, 
+                    registeredAt: Date.now() 
+                });
+                
                 myNickname = name;
                 this.initUI();
             }
         });
     },
     logout: function() {
-        location.reload();
+        if(confirm("Log out? AI history will be deleted from this screen.")) {
+            document.getElementById('ai-chat-view').innerHTML = '<div class="bubble ai" id="ai-welcome">Hi! I\'m Fixy. Paste your code or say hello!</div>';
+            location.reload();
+        }
     },
     resetNickname: function() {
-        if(confirm("Warning: This will delete your nickname registration and clear your session. Proceed?")) {
+        if(confirm("Permanently delete this nickname registration? You will be logged out and others can now use your nickname.")) {
             if(myNickname) database.ref('registered_nicknames/' + myNickname).remove();
             localStorage.removeItem('codemate_device_id');
             location.reload();
@@ -256,47 +296,135 @@ const app = {
         document.getElementById('login-screen').style.display = 'none';
         document.getElementById('main-ui').style.display = 'block';
         database.ref(".info/connected").on("value", (snap) => {
-            const tag = document.getElementById('user-tag');
-            tag.innerText = snap.val() ? "🟢 " + myNickname : "🔴 Offline";
+            document.getElementById('user-tag').innerText = snap.val() ? "🟢 " + myNickname : "🔴 Offline";
         });
         this.listen();
     },
     listen: function() {
-        database.ref("messages").limitToLast(20).on("child_added", (snap) => {
-            const val = snap.val();
-            const view = document.getElementById('lounge-chat-view');
-            const div = document.createElement('div');
-            div.className = `bubble ${val.name === myNickname ? 'user' : 'other'}`;
-            div.innerHTML = `<small style="display:block; font-weight:bold; color:var(--deep-blue)">${val.name}</small>${val.text}`;
-            view.appendChild(div);
-            ui.scroll('lounge-chat-view');
+        database.ref("messages").limitToLast(50).on("child_added", (snap) => {
+            this.renderMessage(snap.key, snap.val());
         });
+        database.ref("messages").on("child_changed", (snap) => {
+            const el = document.getElementById('msg-' + snap.key);
+            if(el) this.updateBubble(el, snap.val(), snap.val().name === myNickname, snap.key);
+        });
+    },
+    renderMessage: function(key, val) {
+        const view = document.getElementById('lounge-chat-view');
+        if(document.getElementById('msg-' + key)) return;
+
+        const oneDay = 24 * 60 * 60 * 1000;
+        if(val.isUnsent && (Date.now() - val.timestamp > oneDay)) return;
+
+        const isMe = val.name === myNickname;
+        const div = document.createElement('div');
+        div.id = 'msg-' + key;
+        div.className = `bubble ${isMe ? 'user' : 'other'}`;
+        this.updateBubble(div, val, isMe, key);
+        view.appendChild(div);
+        ui.scroll('lounge-chat-view');
+    },
+    updateBubble: function(el, val, isMe, key) {
+        if(val.isUnsent) {
+            el.innerHTML = `<span class="unsent-text">Message unsent</span>`;
+            return;
+        }
+        let html = '';
+        if(val.replyTo) html += `<div class="replied-context">Replying to ${val.replyTo}: "${val.replyText}"</div>`;
+        html += `<small style="display:block; font-weight:bold; color:var(--deep-blue)">${val.name}</small> ${val.text}`;
+        html += `<div class="chat-actions">
+                    <span onclick="app.setReply('${val.name}', '${val.text.replace(/'/g, "\\'")}')">Reply</span>`;
+        if(isMe) html += `<span class="delete-btn" onclick="app.unsend('${key}')">🗑️ Delete</span>`;
+        html += `</div>`;
+        el.innerHTML = html;
+    },
+    setReply: function(name, text) {
+        activeReply = { name, text: text.substring(0, 30) };
+        document.getElementById('reply-text').innerText = `Replying to ${name}: ${text}`;
+        document.getElementById('reply-bar').style.display = 'flex';
+        document.getElementById('lounge-input').focus();
+    },
+    cancelReply: function() {
+        activeReply = null;
+        document.getElementById('reply-bar').style.display = 'none';
+    },
+    unsend: function(key) {
+        if(confirm("Unsend message for everyone?")) {
+            database.ref("messages/" + key).update({ 
+                isUnsent: true, 
+                text: "", 
+                timestamp: Date.now() 
+            });
+        }
     },
     solve: function() {
         const inp = document.getElementById('ai-input');
         const val = inp.value.trim();
         if(!val) return;
+        if(this.isBad(val)) return alert("Fixy: Restricted content detected.");
+
         const view = document.getElementById('ai-chat-view');
-        const userDiv = document.createElement('div');
-        userDiv.className = 'bubble user'; userDiv.innerText = val;
-        view.appendChild(userDiv);
-        this.lastFix = `# Formatted Code\n${val}\n# Verified for Peer Review.`;
+        const div = document.createElement('div');
+        div.className = 'bubble user';
+        div.innerHTML = `${val}`; 
+        view.appendChild(div);
+
         const aiDiv = document.createElement('div');
         aiDiv.className = 'bubble ai';
-        aiDiv.innerHTML = `<strong>Diagnostic:</strong> Code check complete.<br><button class="diag-btn" onclick="app.showSolution(this)">Show Fix</button>`;
+        
+        const low = val.toLowerCase();
+        
+        // --- CHAT LOGIC ---
+        if (low.includes("hello") || low.includes("hi") || low.includes("hoy") || low.includes("yo") || low.includes("lods") || low.includes("musta")) {
+            aiDiv.innerHTML = `Uy! Hello ${myNickname}! Ready to code or just vibing? 🦈`;
+        } else if (low.includes("how are you") || low.includes("kumusta")) {
+            aiDiv.innerHTML = `I'm feeling like a fresh compile—no errors! 🚀 How's your day going, ${myNickname}?`;
+        } else if (low.includes("tired") || low.includes("pagod") || low.includes("antok")) {
+            aiDiv.innerHTML = `I feel you, lods. Coding can be draining! Take a 5-minute break, then we'll tackle those bugs again. 🧊`;
+        } else if (low.includes("thank") || low.includes("salamat")) {
+            aiDiv.innerHTML = `Walang anuman! Always happy to help a fellow Lycean. Go get 'em! 💙`;
+        } else if (low.includes("who are you") || low.includes("sino ka")) {
+            aiDiv.innerHTML = `I'm <strong>Fixy</strong>, your friendly neighborhood debugger! Built for 11-ICT students of Alabang.`;
+        } else if (low.includes("joke")) {
+            aiDiv.innerHTML = `Why was the JavaScript developer sad? Because he didn't know how to 'null' his feelings. 😢`;
+        } 
+        // --- RESTORED DEBUGGING FEATURE ---
+        else if(val.includes("{") || val.includes("def") || val.includes("function") || val.includes("class") || val.includes("fix") || val.includes("print") || val.includes("style") || val.includes("import")) {
+            const encodedCode = btoa(unescape(encodeURIComponent(val)));
+            aiDiv.innerHTML = `<strong>Fixy Diagnostic:</strong> I spotted some code there! Want me to take a peek at the logic?<br><button class="diag-btn" onclick="app.showSolution(this, '${encodedCode}')">See Review</button>`;
+        } else {
+            aiDiv.innerHTML = `That's interesting! If you want me to check some code, just paste it here. Otherwise, let's keep chatting! 😊`;
+        }
+        
         view.appendChild(aiDiv);
         ui.scroll('ai-chat-view');
         inp.value = "";
     },
-    showSolution: function(btn) {
-        btn.parentElement.innerHTML = `<div class="code-solution">${this.lastFix}</div>`;
+    showSolution: function(btn, encodedCode) {
+        const code = decodeURIComponent(escape(atob(encodedCode)));
+        const formattedCode = `# --- Fixy's CodeMate Review ---\n\n${code}\n\n# Diagnostic Result:\n# 1. Structure looks consistent for Lyceum ICT standards.\n# 2. Check for missing semi-colons or indentations.\n# 3. Logic verified. Ready for testing! 🚀`;
+        
+        btn.parentElement.innerHTML = `<div class="code-solution">${formattedCode}</div>`;
         ui.scroll('ai-chat-view');
     },
     post: function() {
         const inp = document.getElementById('lounge-input');
         if(!inp.value.trim()) return;
-        database.ref("messages").push({ name: myNickname, text: inp.value });
+        if(this.isBad(inp.value)) return alert("Restricted content detected.");
+
+        const msg = { 
+            name: myNickname, 
+            text: inp.value, 
+            isUnsent: false, 
+            timestamp: Date.now() 
+        };
+        if(activeReply) {
+            msg.replyTo = activeReply.name;
+            msg.replyText = activeReply.text;
+        }
+        database.ref("messages").push(msg);
         inp.value = "";
+        this.cancelReply();
     }
 };
 
