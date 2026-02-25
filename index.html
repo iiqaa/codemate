@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CodeMate | AI & Real-Time Chat</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+
+    <style>
+        :root {
+            --sky-blue: #87CEEB;
+            --deep-blue: #0077b6;
+            --panel-bg: #ffffff;
+            --ai-bubble: #e1f5fe;
+            --user-bubble: #dcf8c6;
+            --code-bg: #1e1e1e;
+            --radius: 18px;
+        }
+
+        * { box-sizing: border-box; }
+        body, html { 
+            margin: 0; padding: 0; 
+            font-family: 'Segoe UI', sans-serif; 
+            background-color: var(--sky-blue); 
+            height: 100vh; overflow: hidden; 
+        }
+
+        /* --- UI COMPONENTS --- */
+        .menu-container { position: relative; display: inline-block; }
+        .menu-btn {
+            background: var(--deep-blue); color: white;
+            border: 2px solid white; padding: 8px 15px;
+            border-radius: 8px; font-weight: bold; cursor: pointer;
+        }
+
+        .dropdown-content {
+            display: none; position: absolute; right: 0;
+            background-color: white; min-width: 200px;
+            box-shadow: 0px 8px 16px rgba(0,0,0,0.2);
+            z-index: 4000; border-radius: 8px; overflow: hidden;
+            border: 1px solid #ddd; margin-top: 5px;
+        }
+
+        .dropdown-content button {
+            width: 100%; padding: 12px 16px; border: none;
+            background: none; text-align: left; cursor: pointer;
+            font-size: 0.9rem; font-family: inherit;
+        }
+
+        .dropdown-content button:hover { background-color: #f1f1f1; }
+        .dropdown-content .reset-item { color: #d32f2f; border-top: 1px solid #eee; font-weight: bold; }
+
+        #team-modal {
+            display: none; position: fixed; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 4001; background: white; padding: 25px;
+            border-radius: 12px; width: 350px; border: 4px solid var(--deep-blue);
+            box-shadow: 0 10px 50px rgba(0,0,0,0.4);
+        }
+
+        .overlay-bg {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.5); z-index: 4000;
+        }
+
+        .description-box {
+            background: #f0faff; border-left: 5px solid var(--deep-blue);
+            padding: 12px; margin: 10px; border-radius: 5px;
+            font-size: 0.85rem; color: #444; line-height: 1.4;
+        }
+
+        nav { 
+            background: rgba(255, 255, 255, 0.95); padding: 10px 30px;
+            display: flex; justify-content: space-between; align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .app-container { 
+            display: grid; grid-template-columns: 1fr 1fr; 
+            gap: 20px; padding: 20px; height: calc(100vh - 170px); 
+        }
+
+        .panel { 
+            background: var(--panel-bg); border-radius: var(--radius); 
+            display: flex; flex-direction: column; overflow: hidden;
+            border: 3px solid var(--deep-blue); position: relative;
+        }
+
+        .panel-title { background: var(--deep-blue); color: white; padding: 12px; font-weight: bold; }
+        .lounge-title { background: #302dfb; color: white; padding: 12px; font-weight: bold; }
+
+        .chat-view { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; background: #fafafa; }
+        .bubble { padding: 10px 14px; border-radius: var(--radius); max-width: 80%; font-size: 0.95rem; position: relative; line-height: 1.4; }
+        .ai { background: var(--ai-bubble); align-self: flex-start; border-bottom-left-radius: 4px; }
+        .user { background: var(--user-bubble); align-self: flex-end; border-bottom-right-radius: 4px; }
+        .other { background: #eee; align-self: flex-start; border-bottom-left-radius: 4px; }
+        .unsent-text { font-style: italic; color: #999; font-size: 0.85rem; }
+
+        .replied-context { 
+            background: rgba(0,0,0,0.05); border-left: 3px solid var(--deep-blue);
+            padding: 4px 8px; margin-bottom: 5px; border-radius: 4px; font-size: 0.8rem; color: #666;
+        }
+
+        .chat-actions { margin-top: 4px; display: flex; gap: 10px; font-size: 0.7rem; opacity: 0.7; }
+        .chat-actions span:hover { opacity: 1; cursor: pointer; text-decoration: underline; }
+        .delete-btn { color: #d32f2f; }
+
+        .reply-preview {
+            display: none; background: #f0f0f0; padding: 8px 15px;
+            border-top: 1px solid #ddd; font-size: 0.85rem;
+            justify-content: space-between; align-items: center;
+        }
+
+        .code-solution { 
+            background: var(--code-bg); color: #55efc4; 
+            padding: 15px; border-radius: 8px; font-family: 'Consolas', monospace;
+            margin-top: 10px; white-space: pre-wrap; border-left: 4px solid #55efc4;
+            overflow-x: auto; font-size: 0.85rem; line-height: 1.5;
+        }
+
+        .diag-btn { background: var(--deep-blue); color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; margin-top: 8px; font-weight: bold; }
+        .auth-overlay { position: fixed; inset: 0; background: var(--sky-blue); display: flex; align-items: center; justify-content: center; z-index: 5000; }
+        .auth-card { background: white; padding: 35px; border-radius: 20px; width: 340px; text-align: center; border: 4px solid var(--deep-blue); }
+        
+        .panel-input { display: flex; padding: 12px; background: white; border-top: 1px solid #eee; gap: 10px; }
+        .panel-input input { flex: 1; padding: 10px 15px; border: 1px solid #ddd; border-radius: 20px; outline: none; }
+    </style>
+</head>
+<body>
+
+<div id="modal-overlay" class="overlay-bg" onclick="ui.toggleModal()"></div>
+<div id="team-modal">
+    <div class="description-box">
+        <strong>Developing a Peer Code Review Web Platform
+For 11-ICT Programming Students in Lyceum
+of Alabang A.Y. 2025-2026</strong>
+    </div>
+    <h3><strong>Members:</strong></h3>
+    <ol>
+        <li>Peralta, Daniella</li>
+        <li>Madrazo, Daphny</li>
+        <li>Estoque, Crissa</li>
+        <li>Saplaran, Niño</li>
+        <li>Nimes, Ralph Jed</li>
+        <li>Sadural, Shaun</li>
+    </ol>
+    <button onclick="ui.toggleModal()" style="width:100%; padding:10px; background:var(--deep-blue); color:white; border:none; border-radius:5px; cursor:pointer;">Close</button>
+</div>
+
+<div id="login-screen" class="auth-overlay">
+    <div class="auth-card">
+        <h2 style="color:var(--deep-blue)">Welcome to CodeMate!</h2>
+        <p style="font-size: 0.8rem; color: #666;">Choose a nickname to join.</p>
+        <input type="text" id="username" placeholder="Enter Name.." maxlength="12" style="width:100%; padding:12px; margin: 15px 0; border: 2px solid var(--sky-blue); border-radius:8px; text-align:center;">
+        <button style="width:100%; padding: 12px; background: var(--deep-blue); color:white; border:none; border-radius:8px; cursor:pointer;" onclick="app.checkUsername()">Join Room</button>
+    </div>
+</div>
+
+<nav>
+    <div class="logo" style="font-size: 1.4rem; font-weight: bold; color: var(--deep-blue);">🦈 CodeMate</div>
+    <div style="display: flex; align-items: center; gap: 15px;">
+        <span id="user-tag" style="font-weight: bold; color: var(--deep-blue);">Offline</span>
+        <div class="menu-container">
+            <button class="menu-btn" onclick="ui.toggleMenu()">Menu ▾</button>
+            <div id="menu-dropdown" class="dropdown-content">
+                <button onclick="ui.toggleModal()">Project Details</button>
+                <button onclick="app.logout()">Log Out</button>
+                <button class="reset-item" onclick="app.resetNickname()">Reset Nickname</button>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<div id="main-ui" style="display:none">
+    <main class="app-container">
+        <section class="panel">
+            <div class="panel-title"> Fixy</div>
+            <div class="description-box">Fixy can help you with code errors, or just chat!</div>
+            <div class="chat-view" id="ai-chat-view">
+                <div class="bubble ai">Yo! I'm in Solver Mode. Paste your broken code and I'll rewrite the fix for you instantly.</div>
+            </div>
+            <div class="panel-input">
+                <input type="text" id="ai-input" placeholder="Aa">
+                <button onclick="app.solve()" style="background:var(--deep-blue); color:white; border:none; padding:8px 15px; border-radius:20px; cursor:pointer;">Send</button>
+            </div>
+        </section>
+
+        <section class="panel">
+            <div class="lounge-title"> Classmate Lounge (Live)</div>
+            <div class="description-box">Live chat with your ICT classmates in real-time to discuss codes and share ideas.</div>
+            <div class="chat-view" id="lounge-chat-view"></div>
+            <div id="reply-bar" class="reply-preview">
+                <span id="reply-text"></span>
+                <span onclick="app.cancelReply()" style="cursor:pointer; font-weight:bold;">✕</span>
+            </div>
+            <div class="panel-input">
+                <input type="text" id="lounge-input" placeholder="Aa">
+                <button style="background:#2d7ffb; color:white; border:none; padding:8px 15px; border-radius:20px; cursor:pointer;" onclick="app.post()">Send</button>
+            </div>
+        </section>
+    </main>
+</div>
+
+<script>
+const firebaseConfig = {
+    apiKey: "AIzaSyDxN6nhoM8slu6FvGvmiVWmjY3S4lpApd4",
+    authDomain: "codemate-578b3.firebaseapp.com",
+    databaseURL: "https://codemate-578b3-default-rtdb.firebaseio.com",
+    projectId: "codemate-578b3",
+    storageBucket: "codemate-578b3.firebasestorage.app",
+    messagingSenderId: "900867088515",
+    appId: "1:900867088515:web:602d9780b2fe5212f87bb6",
+    measurementId: "G-YFNEDKNHTM"
+};
+
+firebase.initializeApp(firebaseConfig);
+const database = firebase.database();
+let myNickname = "";
+let activeReply = null;
+
+const banned = ["bobo", "tanga", "gago", "puta", "pota", "hayop", "fuck", "shit", "letche", "tanginamo", "tangina", "fuck you", "inamo","bwisit"];
+
+const ui = {
+    toggleMenu: () => {
+        const d = document.getElementById('menu-dropdown');
+        d.style.display = (d.style.display === 'block') ? 'none' : 'block';
+    },
+    toggleModal: () => {
+        const m = document.getElementById('team-modal');
+        const o = document.getElementById('modal-overlay');
+        const isVisible = m.style.display === 'block';
+        m.style.display = isVisible ? 'none' : 'block';
+        o.style.display = isVisible ? 'none' : 'block';
+    },
+    scroll: (id) => {
+        const el = document.getElementById(id);
+        el.scrollTop = el.scrollHeight;
+    }
+};
+
+const app = {
+    isBad: (t) => banned.some(w => t.toLowerCase().includes(w)),
+    
+    checkUsername: function() {
+        const name = document.getElementById('username').value.trim();
+        if(name.length < 2) return alert("Too short!");
+        if(this.isBad(name)) return alert("Restricted nickname.");
+
+        // Identify this specific browser/device
+        let deviceKey = localStorage.getItem('codemate_device_id');
+        if(!deviceKey) {
+            deviceKey = 'dev_' + Math.random().toString(36).substr(2, 9);
+            localStorage.setItem('codemate_device_id', deviceKey);
+        }
+
+        database.ref('registered_nicknames/' + name).once('value', (snap) => {
+            const data = snap.val();
+            
+            // If nickname exists but belongs to another device
+            if(data && data.deviceId !== deviceKey) {
+                return alert("Nickname is already taken by someone else!");
+            }
+            
+            // If nickname exists and belongs to this device, OR it's a new nickname
+            database.ref('registered_nicknames/' + name).set({ 
+                deviceId: deviceKey,
+                lastLogin: Date.now()
+            });
+            
+            myNickname = name;
+            this.initUI();
+        });
+    },
+
+    initUI: function() {
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('main-ui').style.display = 'block';
+        database.ref(".info/connected").on("value", (snap) => {
+            document.getElementById('user-tag').innerText = snap.val() ? " ● " + myNickname : " Offline";
+        });
+        this.listen();
+    },
+
+    listen: function() {
+        database.ref("messages").limitToLast(40).on("child_added", (snap) => {
+            this.renderMessage(snap.key, snap.val());
+        });
+        database.ref("messages").on("child_changed", (snap) => {
+            const el = document.getElementById('msg-' + snap.key);
+            if(el) this.updateBubble(el, snap.val(), snap.val().name === myNickname, snap.key);
+        });
+    },
+
+    renderMessage: function(key, val) {
+        const oneDay = 24 * 60 * 60 * 1000;
+        if(val.isUnsent && (Date.now() - val.timestamp > oneDay)) return;
+
+        const view = document.getElementById('lounge-chat-view');
+        const isMe = val.name === myNickname;
+        const div = document.createElement('div');
+        div.id = 'msg-' + key;
+        div.className = `bubble ${isMe ? 'user' : 'other'}`;
+        this.updateBubble(div, val, isMe, key);
+        view.appendChild(div);
+        ui.scroll('lounge-chat-view');
+    },
+
+    updateBubble: function(el, val, isMe, key) {
+        if(val.isUnsent) {
+            el.innerHTML = `<span class="unsent-text">Message deleted</span>`;
+            return;
+        }
+        let html = '';
+        if(val.replyTo) html += `<div class="replied-context">Replying to ${val.replyTo}: "${val.replyText}"</div>`;
+        html += `<strong>${val.name}</strong>: ${val.text}`;
+        html += `<div class="chat-actions">
+                    <span onclick="app.setReply('${val.name}', '${val.text.replace(/'/g, "\\'")}')">Reply</span>`;
+        if(isMe) html += `<span class="delete-btn" onclick="app.unsend('${key}')">🗑️ Delete</span>`;
+        html += `</div>`;
+        el.innerHTML = html;
+    },
+
+    setReply: function(name, text) {
+        activeReply = { name, text: text.substring(0, 30) };
+        document.getElementById('reply-text').innerText = `Replying to ${name}...`;
+        document.getElementById('reply-bar').style.display = 'flex';
+        document.getElementById('lounge-input').focus();
+    },
+
+    cancelReply: function() {
+        activeReply = null;
+        document.getElementById('reply-bar').style.display = 'none';
+    },
+
+    unsend: function(key) {
+        if(confirm("Delete this message?")) {
+            database.ref("messages/" + key).update({ 
+                isUnsent: true, text: "", timestamp: Date.now() 
+            });
+        }
+    },
+
+    solve: function() {
+        const inp = document.getElementById('ai-input');
+        const val = inp.value.trim();
+        if(!val) return;
+        const view = document.getElementById('ai-chat-view');
+        
+        const userDiv = document.createElement('div');
+        userDiv.className = 'bubble user';
+        userDiv.innerText = val;
+        view.appendChild(userDiv);
+
+        const aiDiv = document.createElement('div');
+        aiDiv.className = 'bubble ai';
+        
+        const low = val.toLowerCase();
+        
+        let diagnostic = "";
+        let lang = "";
+        let suggestedFix = "";
+
+        if(low.includes("<html>") || low.includes("<div>") || low.includes("<p>")) {
+            lang = "HTML";
+            diagnostic = "• Unclosed tags detected.<br>• Missing Doctype or Head structure.";
+            suggestedFix = "<!DOCTYPE html>\n<html>\n<head><title>Fixed</title></head>\n<body>\n  <div>" + val.replace(/<|>/g, m => (m == '<' ? '&lt;' : '&gt;')) + "</div>\n</body>\n</html>";
+        } else if (low.includes("def ") || low.includes("print(") || low.includes("import ")) {
+            lang = "Python";
+            diagnostic = "• Indentation error suspected.<br>• Missing colon (:) after statement.<br>• Possible undefined variable.";
+            suggestedFix = "def my_function():\n    print('Code Debugged Successfully!')\n    # Your logic here\n" + val;
+        } else if (low.includes("{") && (low.includes("color:") || low.includes("margin:"))) {
+            lang = "CSS";
+            diagnostic = "• Missing semicolon (;).<br>• Invalid selector or curly brace mismatch.";
+            suggestedFix = "/* Fixed CSS */\nbody {\n    " + val + "\n}";
+        } else if (low.includes("function") || low.includes("const ") || low.includes("let ")) {
+            lang = "JavaScript";
+            diagnostic = "• Syntax Error: Missing brackets or parentheses.<br>• ReferenceError: Variable might not be initialized.";
+            suggestedFix = "function fixCode() {\n    try {\n        " + val + "\n        console.log('Success');\n    } catch(e) { console.error(e); }\n}";
+        }
+
+        if(diagnostic !== "") {
+            aiDiv.innerHTML = `<strong>Fixy Diagnostic (${lang}):</strong><br>${diagnostic}<br><br>Shall I debug this code for you?`;
+            const btn = document.createElement('button');
+            btn.className = "diag-btn";
+            btn.innerText = "Yes, Debug Code";
+            btn.onclick = () => this.showSolution(btn, suggestedFix);
+            aiDiv.appendChild(btn);
+        } else {
+            aiDiv.innerText = "I'm listening! Paste some code or say hi.";
+        }
+        
+            // --- INTERACTIVE CHAT LOGIC ---
+        if(diagnostic !== "") {
+            aiDiv.innerHTML = `<strong>Fixy Diagnostic (${lang}):</strong><br>${diagnostic}<br><br>Want me to rewrite this for you?`;
+            const btn = document.createElement('button');
+            btn.className = "diag-btn";
+            btn.innerText = "Yes, Fix Code";
+            btn.onclick = () => this.showSolution(btn, suggestedFix);
+            aiDiv.appendChild(btn);
+        } else {
+            // Conversational Responses
+            if(low.includes("hello") || low.includes("hi") || low === "yo") {
+                aiDiv.innerText = "Hi there! I'm Fixy, your personal code assistant. How's your project going?";
+            } else if(low.includes("who are you") || low.includes("what is your name")) {
+                aiDiv.innerText = "I'm Fixy! I was created to help 11-ICT students in Lyceum of Alabang debug their code.";
+            } else if(low.includes("how are you")) {
+                aiDiv.innerText = "I'm functioning at 100% capacity! Ready to squash some bugs. How about you?";
+            } else if(low.includes("thank") || low.includes("salamat")) {
+                aiDiv.innerText = "You're very welcome! I'm always here to help. Good luck with your coding!";
+            } else if(low.includes("help") || low.includes("can you")) {
+                aiDiv.innerText = "Sure! You can paste your HTML, CSS, JS, or Python code here and I'll try to fix it, or we can just chat!";
+            } else if(low.includes("bye") || low.includes("goodnight")) {
+                aiDiv.innerText = "Goodbye! Happy coding and see you next time!";
+            } else {
+                aiDiv.innerText = "I'm not sure I understand that, but I'm listening! If you have broken code, just paste it here.";
+            }
+        }
+    
+        view.appendChild(aiDiv);
+        ui.scroll('ai-chat-view');
+        inp.value = "";
+    },
+
+    showSolution: function(btn, fix) {
+        const solutionDiv = document.createElement('div');
+        solutionDiv.className = "code-solution";
+        solutionDiv.innerText = fix;
+        btn.parentElement.appendChild(solutionDiv);
+        btn.remove();
+        ui.scroll('ai-chat-view');
+    },
+
+    logout: function() {
+        // As per user instructions: Clear AI history and reload
+        document.getElementById('ai-chat-view').innerHTML = '';
+        location.reload();
+    },
+
+    resetNickname: function() {
+        if(confirm("Delete your nickname so others can use it?")) {
+            if(myNickname) {
+                database.ref('registered_nicknames/' + myNickname).remove();
+            }
+            localStorage.removeItem('codemate_device_id');
+            location.reload();
+        }
+    },
+
+    post: function() {
+        const inp = document.getElementById('lounge-input');
+        const val = inp.value.trim();
+        if(!val) return;
+        if(this.isBad(val)) return alert("Bad word detected!");
+
+        const msgData = { name: myNickname, text: val, timestamp: Date.now() };
+        if(activeReply) { msgData.replyTo = activeReply.name; msgData.replyText = activeReply.text; }
+        
+        database.ref("messages").push(msgData);
+        inp.value = "";
+        this.cancelReply();
+    }
+};
+</script>
+</body>
+</html>
